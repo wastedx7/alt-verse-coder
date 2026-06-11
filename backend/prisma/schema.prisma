@@ -1,13 +1,120 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  moduleFormat  = "cjs"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Language {
+  JAVA
+  PYTHON
+  CPP
+  JAVASCRIPT
+}
+
+enum Verdict {
+  PENDING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  COMPILE_ERROR
+}
+
+model User {
+  id         Int          @id @default(autoincrement()) @db.UnsignedInt
+  username   String       @unique @db.VarChar(50)
+  email      String       @unique @db.VarChar(255)
+  password   String       @db.Char(60)
+  role       Role         @default(USER)
+  created_at DateTime     @default(now())
+  submissions Submission[]
+  progress   UserProgress[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Problem {
+  id                 Int           @id @default(autoincrement()) @db.UnsignedInt
+  title              String        @db.VarChar(255)
+  slug               String        @unique @db.VarChar(255)
+  difficulty         Difficulty
+  description        String        @db.LongText
+  constraints        String?       @db.Text
+  tags               Json?
+  companies          Json?
+  hints              Json?
+  editorial          String?       @db.LongText
+  function_signature Json
+  starter_code       Json
+  is_published       Boolean       @default(false)
+  created_at         DateTime      @default(now())
+  test_cases         TestCase[]
+  submissions        Submission[]
+  progress           UserProgress[]
+
+  @@index([difficulty])
+  @@index([slug])
+}
+
+model TestCase {
+  id              Int     @id @default(autoincrement()) @db.UnsignedInt
+  problem_id      Int     @db.UnsignedInt
+  input_json      Json
+  expected_output Json
+  is_hidden       Boolean @default(false)
+  ordering        Int     @default(0)
+
+  problem Problem @relation(fields: [problem_id], references: [id], onDelete: Cascade)
+
+  @@index([problem_id])
+}
+
+model Submission {
+  id            Int        @id @default(autoincrement()) @db.UnsignedInt
+  user_id       Int        @db.UnsignedInt
+  problem_id    Int        @db.UnsignedInt
+  language      Language
+  source_code   String     @db.LongText
+  verdict       Verdict    @default(PENDING)
+  runtime_ms    Int?
+  memory_kb     Int?       @db.UnsignedInt
+  error_output  String?    @db.Text
+  submitted_at  DateTime   @default(now())
+
+  user    User    @relation(fields: [user_id], references: [id])
+  problem Problem @relation(fields: [problem_id], references: [id])
+
+  @@index([user_id, problem_id])
+  @@index([submitted_at])
+}
+
+model UserProgress {
+  id              Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id         Int       @db.UnsignedInt
+  problem_id      Int       @db.UnsignedInt
+  solved          Boolean   @default(false)
+  attempts        Int       @default(0)
+  last_submission DateTime?
+
+  user    User    @relation(fields: [user_id], references: [id])
+  problem Problem @relation(fields: [problem_id], references: [id])
+
+  @@unique([user_id, problem_id])
 }
